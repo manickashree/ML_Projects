@@ -1,0 +1,152 @@
+---
+title: "Covid Case Forecast using ARIMA"
+author: "Manickashree"
+date: "2024-02-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+setwd("/Users/manickashree/Documents/TTD UCD/TTD Winter/TTD Business Analytics I/Class2")
+rm(list=ls(all=TRUE)) 	# clear data
+getwd()
+```
+
+
+```{r}
+## Importing required libraries
+
+library("forecast")
+library("tseries") 		# reqired for adf.test of stationarity
+library(readxl)
+data_a2 <- read_excel("2020_Covid_Data.xlsx") 	# weekly data
+names(data_a2)
+head(data_a2,5)
+
+il <- data_a2[,19]		# millions in xyz currency
+il <- il[1:345,]		# remove missing value 131st
+tail(il,20)
+
+```
+
+```{r}
+##### Representing Data as Time Series Object #####
+
+##yy <- ts(il, frequency = 366, start = c(2020,22))		
+yy <- ts(il, frequency = 345, start = c(2020,1,22))		
+plot.ts(yy)										
+
+
+## Fitting an auto.arima model
+m_auto <- auto.arima(yy)		# fits ARIMA(p,d,q) x (P, D, Q) automatically
+m_auto.predict <- forecast:::forecast.Arima(m_auto, h = 41, level = c(68, 90))
+plot(m_auto.predict)
+summary(m_auto.predict)
+```
+
+### The auto arima model value is (1,2,1)
+
+```{r}
+# install and load "tseries" package 
+adf.test(yy)							# if p-value is large (> 0.10), then nonstationary
+
+yd <- diff(yy, differences = 1)			
+plot.ts(yd)								# looks stationary visually
+adf.test(yd)							# estimated p = 0.01 => small p-value (< 0.10) => so yd is stationary ==> fix d = 1 in ARIMA models to be fitted
+
+yd2 <- diff(yy, differences = 2)			
+plot.ts(yd2)								# looks stationary visually
+adf.test(yd2)
+## Step 2. Decide AR(p) or MA(q) or both ARMA(p,q). Use the stationary series from Step 1. 
+
+# To decide AR(p), plot Pacf. For AR(p) => Pacf becomes zero at some lag p
+
+Pacf(yd2, lag.max = 10)					# Pacf suggests p = 1 
+
+
+# To decide MA, plot Acf. For MA(q) => Acf becomes zero at some lag q
+
+Acf(yd2, lag.max = 10)				# Acf suggests q = 1 
+```
+
+```{r}
+## Fitting alternative ARIMA models
+m1 <- Arima(yy, order = c(0,2,1))			
+summary(m1)	
+```
+### The MAPE for model m1 is 2.456299, AICc is 5658.46 and BIC is 5666.1
+
+```{r}
+m2 <- Arima(yy, order = c(0,2,2))	
+summary(m2)
+
+```
+### The MAPE for model m2 is 2.463962, AICc is 5651.11 and BIC is 5662.56
+
+```{r}
+m3 <- Arima(yy, order = c(1,2,1))	
+summary(m3)
+```
+
+### The MAPE for model m3 is 2.465606, AICc is 5648.83 and BIC is 5660.27
+
+# Consider Seasonal ARIMA(p,d,q) x (P, D, Q) components when seasonality is expected/suspected
+```{r}
+m4 <- Arima(yy, order=c(1,2,0), seasonal = list(order = c(1,0,0), period = 52))
+summary(m4)
+```
+### The MAPE for model m4 is 2.391208, AICc is 5663.22 and BIC is 5674.66
+
+```{r}
+m5 <- Arima(yy, order=c(1,2,1), seasonal = list(order = c(0,1,1), period = 52))
+summary(m5)
+
+```
+### The MAPE for model m5 is 0.7579916, AICc is 4899.14 and BIC is 4913.69
+
+### When comparing the MAPE of m1, m2, m3 and m4 the model 5(m5) has the least MAPE of 0.7579916, AICc of 4899.14 and BIC of 4913.69 and hence I am choosing this model to forecast my furture values. 
+
+```{r}
+m1.predict <- forecast:::forecast.Arima(m1, h = 41, level = c(68, 90))
+plot(m1.predict)
+summary(m1.predict)		
+```
+
+```{r}
+m2.predict <- forecast:::forecast.Arima(m2, h = 41, level = c(68, 90))
+plot(m2.predict)
+summary(m2.predict)	
+```
+
+```{r}
+m3.predict <- forecast:::forecast.Arima(m3, h = 41, level = c(68, 90))
+plot(m3.predict)
+summary(m3.predict)	
+```
+
+```{r}
+m4.predict <- forecast:::forecast.Arima(m4, h = 41, level = c(68, 90))
+plot(m4.predict)
+summary(m4.predict)
+```
+
+```{r}
+m5.predict <- forecast:::forecast.Arima(m5, h = 41, level = c(68, 90))
+plot(m5.predict)
+summary(m5.predict)
+```
+
+
+
+
+
+
